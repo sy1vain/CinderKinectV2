@@ -1,2 +1,0 @@
-ofxKinectV2
-ofxGui
