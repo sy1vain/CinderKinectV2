@@ -394,7 +394,7 @@
 				INSTALL_PATH = "$(HOME)/Applications";
 				OTHER_LDFLAGS = (
 					"\"$(CINDER_PATH)/lib/libcinder_d.a\"",
-					"../../..//libs/libusb/lib/osx/usb-1.0.0-latest-superspeed.a",
+					"../../../libs/libusb/lib/osx/usb-1.0.0-latest-superspeed.a",
 					../../../libs/libfreenect2/lib/osx/libfreenect2.a,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "org.libcinder.${PRODUCT_NAME:rfc1034identifier}";
