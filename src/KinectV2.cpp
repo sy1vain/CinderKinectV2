@@ -112,7 +112,7 @@ bool KinectV2::open(std::string serial){
 //--------------------------------------------------------------------------------
 bool KinectV2::isThreadRunning(){
     std::lock_guard<std::recursive_mutex> locked(_lock);
-    return _threadRunning;
+    return _threadRunning && protonect.isOpened();
 }
 
 void KinectV2::startThread(){
@@ -156,6 +156,11 @@ void KinectV2::threadedFunction(){
 
 //--------------------------------------------------------------------------------
 void KinectV2::update(){
+}
+
+//--------------------------------------------------------------------------------
+bool KinectV2::isOpen(){
+    return protonect.isOpened();
 }
 
 //--------------------------------------------------------------------------------

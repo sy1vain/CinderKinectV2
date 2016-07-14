@@ -46,6 +46,7 @@ public:
     void update();
     void close();
     
+    bool isOpen();
     bool isFrameNew();
     
     ci::Surface8uRef getSurfaceRGB();

@@ -95,7 +95,11 @@ Protonect::Frame Protonect::updateKinect(int minDist, int maxDist){
     
     if(bOpened){
         //collect frames
-        listener->waitForNewFrame(frames);
+        bool success = listener->waitForNewFrame(frames, 1000);
+        if(!success){
+            closeKinect();
+            return frame;
+        }
         
         libfreenect2::Frame *rgb = frames[libfreenect2::Frame::Color];
         libfreenect2::Frame *ir = frames[libfreenect2::Frame::Ir];
@@ -162,5 +166,9 @@ int Protonect::closeKinect(){
   }
 
   return 0;
+}
+
+bool Protonect::isOpened(){
+    return bOpened;
 }
 

@@ -28,6 +28,7 @@ class Protonect{
         int openKinect(std::string serialNo);
         Frame updateKinect(int minDist=50, int maxDist=8000);
         int closeKinect();
+        bool isOpened();
     
         libfreenect2::Freenect2 & getFreenect2Instance(){
             return freenect2;
