@@ -47,7 +47,12 @@ public:
     void close();
     
     bool isOpen();
-    bool isFrameNew();
+    bool checkFrameNew(){
+        return checkRGBFrameNew() || checkIRFrameNew() || checkDepthFrameNew();
+    }
+    bool checkRGBFrameNew();
+    bool checkIRFrameNew();
+    bool checkDepthFrameNew();
     
     ci::Surface8uRef getSurfaceRGB();
     ci::Channel32fRef getChannelIR();
@@ -74,13 +79,10 @@ protected:
     bool _threadRunning;
     std::recursive_mutex _lock;
     
-    bool bNewBuffer;
-    bool bNewFrame;
+    bool bNewRGBFrame, bNewIRFrame, bNewDepthFrame;
     bool bOpened;
     
     Options _opts;
     
     Protonect protonect;
-    
-    int lastFrameNo;
 };

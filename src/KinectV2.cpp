@@ -27,10 +27,8 @@ KinectV2Ref KinectV2::create(unsigned int deviceId, Options opts){
 
 //--------------------------------------------------------------------------------
 KinectV2::KinectV2(Options opts){
-    bNewFrame  = false;
-    bNewBuffer = false;
+    bNewRGBFrame = bNewIRFrame = bNewDepthFrame  = false;
     bOpened    = false;
-    lastFrameNo = -1;
     
     _opts = opts;
 }
@@ -92,18 +90,16 @@ bool KinectV2::open(unsigned int deviceId){
 bool KinectV2::open(std::string serial){
     close(); 
     
-    bNewFrame  = false;
-    bNewBuffer = false;
+    bNewRGBFrame = bNewIRFrame = bNewDepthFrame  = false;
     bOpened    = false;
     
     int retVal = protonect.openKinect(serial);
     
-    if(retVal==0){
-        lastFrameNo = -1;
-        startThread();
-    }else{
+    if(retVal!=0){
         return false;
     }
+    
+    startThread();
     
     bOpened = true;
     return true;
@@ -146,10 +142,18 @@ void KinectV2::threadedFunction(){
         
         {
             std::lock_guard<std::recursive_mutex> locked(_lock);
-            if(frame.rgb) _surfaceRGB = frame.rgb;
-            if(frame.ir) _channelIR = frame.ir;
-            if(frame.depth) _channelDepth = frame.depth;
-//                    bNewBuffer = true;
+            if(frame.rgb){
+                _surfaceRGB = frame.rgb;
+                bNewRGBFrame = true;
+            }
+            if(frame.ir){
+                _channelIR = frame.ir;
+                bNewIRFrame = true;
+            }
+            if(frame.depth){
+                _channelDepth = frame.depth;
+                bNewDepthFrame = true;
+            }
         }
     }
 }
@@ -164,25 +168,34 @@ bool KinectV2::isOpen(){
 }
 
 //--------------------------------------------------------------------------------
-bool KinectV2::isFrameNew(){
-    return bNewFrame; 
+bool KinectV2::checkRGBFrameNew(){
+    return bNewRGBFrame;
+}
+bool KinectV2::checkIRFrameNew(){
+    return bNewIRFrame;
+}
+bool KinectV2::checkDepthFrameNew(){
+    return bNewDepthFrame;
 }
 
 //--------------------------------------------------------------------------------
 ci::Surface8uRef KinectV2::getSurfaceRGB(){
     std::lock_guard<std::recursive_mutex> locked(_lock);
+    bNewRGBFrame = false;
     return _surfaceRGB;
 }
 
 //--------------------------------------------------------------------------------
 ci::Channel32fRef KinectV2::getChannelIR(){
     std::lock_guard<std::recursive_mutex> locked(_lock);
+    bNewIRFrame = false;
     return _channelIR;
 }
 
 //--------------------------------------------------------------------------------
 ci::Channel32fRef KinectV2::getChannelDepth(){
     std::lock_guard<std::recursive_mutex> locked(_lock);
+    bNewDepthFrame = false;
     return _channelDepth;
 }
 
