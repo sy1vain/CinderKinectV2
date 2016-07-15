@@ -19,7 +19,7 @@
 
 typedef std::shared_ptr<class KinectV2> KinectV2Ref;
 
-class KinectV2 {
+class KinectV2 : public std::enable_shared_from_this<KinectV2> {
     
 public:
     
@@ -27,6 +27,10 @@ public:
         std::string serial;
         int deviceId;
         int freenectId;
+    };
+    
+    struct Options{
+        
     };
     
     static KinectV2Ref create();
@@ -40,7 +44,7 @@ public:
     void open(KinectDeviceInfo kinect);
     void open(unsigned int deviceId=0);
     void open(const std::string& serial);
-    void close();
+    void close(bool wait=false);
     
     bool isBusy();
     bool isOpen();
@@ -57,6 +61,18 @@ public:
     ci::Surface8uRef getSurfaceRGB();
     ci::Channel32fRef getChannelIR();
     ci::Channel32fRef getChannelDepth();
+    
+    int minDistance();
+    KinectV2Ref minDistance(int dist);
+    int maxDistance();
+    KinectV2Ref maxDistance(int dist);
+    
+    bool colorEnabled();
+    KinectV2Ref colorEnabled(bool enabled);
+    bool irEnabled();
+    KinectV2Ref irEnabled(bool enabled);
+    bool depthEnabled();
+    KinectV2Ref depthEnabled(bool enabled);
     
 protected:
     KinectV2();
@@ -85,4 +101,9 @@ protected:
     
     std::shared_ptr<std::thread> _thread;
     std::recursive_mutex _recursive_mutex;
+    
+    //settings
+    int _distMin, _distMax;
+    bool _color, _ir, _depth;
+    float _timeout;
 };

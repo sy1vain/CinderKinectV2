@@ -15,13 +15,12 @@ KinectV2Ref KinectV2::create(){
     return KinectV2Ref(new KinectV2());
 }
 
-KinectV2::KinectV2::KinectV2() : _opened(false), _opening(false), _closing(false){
+KinectV2::KinectV2::KinectV2() : _opened(false), _opening(false), _closing(false), _distMin(500), _distMax(6000), _color(true), _ir(true), _depth(true) {
     CI_LOG_I("Creating KinectV2");
 }
 
 KinectV2::~KinectV2(){
-    close();
-    joinThread();
+    close(true);
     CI_LOG_I("Destroyed KinectV2");
 }
 
@@ -49,10 +48,12 @@ std::vector<KinectV2::KinectDeviceInfo> KinectV2::getDeviceList(){
 }
 
 void KinectV2::open(KinectV2::KinectDeviceInfo kinect){
+    close(true);
     open(kinect.serial);
 }
 
 void KinectV2::open(unsigned int deviceId){
+    close(true);
     std::vector <KinectDeviceInfo> devices = getDeviceList();
     
     if(devices.empty()){
@@ -70,28 +71,34 @@ void KinectV2::open(unsigned int deviceId){
 }
 
 void KinectV2::open(const std::string& serial){
+    close(true);
     CI_LOG_I("Open device " << serial);
     
-    close(); //close if needed
-    
-    joinThread(); //make sure the current thread is not running any more
-
     {
         std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
+        _surfaceRGB.reset();
+        _channelIR.reset();
+        _channelDepth.reset();
         _opening = true;
     }
+    
+    CI_LOG_I("Open device " << serial);
     
     startThread(serial);
 }
 
-void KinectV2::close(){
+void KinectV2::close(bool wait){
     if(isClosing()) return;
     if(!isOpen() && !isOpening()) return;
+    
+    CI_LOG_D("Closing device");
     
     {
         std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
         _closing = true;
     }
+    
+    if(wait) joinThread();
 }
 
 bool KinectV2::isBusy(){
@@ -144,6 +151,62 @@ ci::Channel32fRef KinectV2::getChannelDepth(){
     return _channelDepth;
 }
 
+int KinectV2::minDistance(){
+    std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
+    return _distMin;
+}
+
+KinectV2Ref KinectV2::minDistance(int dist){
+    std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
+    _distMin = dist;
+    return shared_from_this();
+}
+
+int KinectV2::maxDistance(){
+    std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
+    return _distMax;
+}
+
+KinectV2Ref KinectV2::maxDistance(int dist){
+    std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
+    _distMax = dist;
+    return shared_from_this();
+}
+
+bool KinectV2::colorEnabled(){
+    std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
+    return _color;
+}
+
+KinectV2Ref KinectV2::colorEnabled(bool enabled){
+    std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
+    _color = enabled;
+    return shared_from_this();
+}
+
+bool KinectV2::irEnabled(){
+    std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
+    return _ir;
+}
+
+KinectV2Ref KinectV2::irEnabled(bool enabled){
+    std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
+    _ir = enabled;
+    return shared_from_this();
+}
+
+bool KinectV2::depthEnabled(){
+    std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
+    return _depth;
+}
+
+KinectV2Ref KinectV2::depthEnabled(bool enabled){
+    std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
+    _depth = enabled;
+    return shared_from_this();
+}
+
+
 void KinectV2::joinThread(){
     if(_thread && _thread->joinable()){
         _thread->join();
@@ -173,16 +236,21 @@ void KinectV2::runDevice(const std::string serial){
         }
         
         
+        {
+            std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
+            _opened = true;
+        }
+        
         unsigned int frame_types = 0;
-        frame_types |= libfreenect2::Frame::Color;
-        frame_types |= libfreenect2::Frame::Depth;
-        frame_types |= libfreenect2::Frame::Ir;
+        if(colorEnabled()) frame_types |= libfreenect2::Frame::Color;
+        if(depthEnabled()) frame_types |= libfreenect2::Frame::Depth;
+        if(irEnabled()) frame_types |= libfreenect2::Frame::Ir;
         
         libfreenect2::SyncMultiFrameListener* listener = new libfreenect2::SyncMultiFrameListener(frame_types);
         libfreenect2::FrameMap frames;
         
-        bool enable_rgb = true;
-        bool enable_depth = true;
+        bool enable_rgb = colorEnabled();
+        bool enable_depth = depthEnabled() || irEnabled();
         
         if(enable_rgb) dev->setColorFrameListener(listener);
         if(enable_depth) dev->setIrAndDepthFrameListener(listener);
@@ -191,7 +259,6 @@ void KinectV2::runDevice(const std::string serial){
         {
             std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
             _opening = false;
-            _opened = true;
         }
     
         
@@ -212,6 +279,10 @@ void KinectV2::runDevice(const std::string serial){
         {
             std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
             _opened = false;
+            _newRGBFrame = _newIRFrame = _newDepthFrame = false;
+            _surfaceRGB.reset();
+            _channelIR.reset();
+            _channelDepth.reset();
         }
         
         //cleanup
@@ -262,8 +333,8 @@ void KinectV2::handleIRFrame(libfreenect2::Frame *frame){
 
 void KinectV2::handleDepthFrame(libfreenect2::Frame *frame){
     if(!frame) return;
-    int minDist = 500;
-    int maxDist = 6000;
+    int minDist = minDistance();
+    int maxDist = maxDistance();
     ci::Channel32fRef depthChannel = ci::Channel32f::create(frame->width, frame->height);
     memcpy(depthChannel->getData(), reinterpret_cast<float*>(frame->data), frame->width*frame->height*4);
     
