@@ -4,6 +4,7 @@
 #include "cinder/Log.h"
 
 #include "cinder/gl/Texture.h"
+#include "cinder/Utilities.h"
 
 #include "KinectV2.h"
 
@@ -15,6 +16,7 @@ class BasicExampleApp : public App {
   public:
 	void setup() override;
 	void mouseDown( MouseEvent event ) override;
+    void keyUp( KeyEvent event ) override;
 	void update() override;
 	void draw() override;
     
@@ -28,29 +30,38 @@ class BasicExampleApp : public App {
 
 void BasicExampleApp::setup()
 {
-    kinect = KinectV2::create(0, KinectV2::Options().minDistance(0).maxDistance(2000));
-    ci::gl::enableAlphaBlending();
-    
-//    auto devices = kinect->getDeviceList();
-    
 }
 
 void BasicExampleApp::mouseDown( MouseEvent event )
 {
 }
 
+void BasicExampleApp::keyUp(KeyEvent event){
+    
+    textureRGB.reset();
+    textureIR.reset();
+    textureDepth.reset();
+    
+    if(event.getChar()==' '){
+        kinect = KinectV2::create();
+        kinect->open();
+    }
+}
+
 void BasicExampleApp::update()
 {
+    if(!kinect) return;
+    if(kinect->checkRGBFrameNew()){
+        textureRGB = gl::Texture::create(*kinect->getSurfaceRGB());
+    }
     
-    auto rgb = kinect->getSurfaceRGB();
-    if(rgb) textureRGB = gl::Texture::create(*rgb);
+    if(kinect->checkIRFrameNew()){
+        textureIR = gl::Texture::create(*kinect->getChannelIR());
+    }
     
-    auto ir = kinect->getChannelIR();
-    if(ir) textureIR = gl::Texture::create(*ir);
-    
-    auto depth = kinect->getChannelDepth();
-    if(depth) textureIR = gl::Texture::create(*depth);
-    
+    if(kinect->checkDepthFrameNew()){
+        textureDepth = gl::Texture::create(*kinect->getChannelDepth());
+    }
 }
 
 void BasicExampleApp::draw()
@@ -60,6 +71,8 @@ void BasicExampleApp::draw()
     if(textureRGB) gl::draw(textureRGB);
     if(textureIR) gl::draw(textureIR);
     if(textureDepth) gl::draw(textureDepth);
+    
+    ci::gl::drawString(ci::toString(getAverageFps()), vec2(10,10));
 }
 
 CINDER_APP( BasicExampleApp, RendererGl )

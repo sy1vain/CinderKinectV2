@@ -8,7 +8,14 @@
 
 #pragma once
 
-#include "Protonect.h"
+#include <vector>
+#include <libfreenect2/libfreenect2.hpp>
+#include <libfreenect2/frame_listener_impl.h>
+#include <libfreenect2/registration.h>
+#include <libfreenect2/packet_pipeline.h>
+#include <libfreenect2/logger.h>
+#include <libfreenect2/usb/transfer_pool.h>
+#include <libfreenect2/usb/event_loop.h>
 
 typedef std::shared_ptr<class KinectV2> KinectV2Ref;
 
@@ -18,45 +25,28 @@ public:
     
     struct KinectDeviceInfo{
         std::string serial;
-        int deviceId;   //if you have the same devices plugged in device 0 will always be the same Kinect
-        int freenectId; //don't use this one - this is the index given by freenect2 - but this can change based on order device is plugged in
+        int deviceId;
+        int freenectId;
     };
     
-    class Options {
-    public:
-        Options(): _distMin(500), _distMax(6000), _color(true), _ir(true), _depth(true), _timeout(5){}
-        int minDistance(){ return _distMin; }
-        Options& minDistance(int dist){ _distMin = dist; return *this; }
-        int maxDistance(){ return _distMax; }
-        Options& maxDistance(int dist){ _distMax = dist; return *this; }
-        bool color(){ return _color; }
-        Options& color(bool color){ _color = color; return *this; }
-        bool ir(){ return _ir; }
-        Options& ir(bool ir){ _ir = ir; return *this; }
-        bool depth(){ return _depth; }
-        Options& depth(bool depth){ _depth = depth; return *this; }
-        float timeout(){ return _timeout; }
-        Options& timeout(float timeout){ _timeout = timeout; return *this; }
-    protected:
-        int _distMin, _distMax;
-        bool _color, _ir, _depth;
-        float _timeout;
-    };
-    
-    static KinectV2Ref create(Options opts=Options());
-    static KinectV2Ref create(std::string serial, Options opts=Options());
-    static KinectV2Ref create(unsigned int deviceId, Options opts=Options());
+    static KinectV2Ref create();
     ~KinectV2();
     
-    std::vector <KinectDeviceInfo> getDeviceList();
-    unsigned int getNumDevices();
+    static std::vector <KinectDeviceInfo> getDeviceList();
+    static unsigned int getNumDevices(){
+        return getDeviceList().size();
+    }
     
-    bool open(std::string serial);
-    bool open(unsigned int deviceId = 0);
-    void update();
+    void open(KinectDeviceInfo kinect);
+    void open(unsigned int deviceId=0);
+    void open(const std::string& serial);
     void close();
     
+    bool isBusy();
     bool isOpen();
+    bool isOpening();
+    bool isClosing();
+    
     bool checkFrameNew(){
         return checkRGBFrameNew() || checkIRFrameNew() || checkDepthFrameNew();
     }
@@ -68,35 +58,31 @@ public:
     ci::Channel32fRef getChannelIR();
     ci::Channel32fRef getChannelDepth();
     
-    
-    int getMinDist();
-    void setMinDist(int dist);
-    int getMaxDist();
-    void setMaxDist(int dist);
-    float getTimeout();
-    void setTimeout(float timeout);
-    
 protected:
-    KinectV2(Options opt);
-    bool isThreadRunning();
-    void startThread();
-    void stopThread();
-    void threadedFunction();
+    KinectV2();
     
+    static std::shared_ptr<libfreenect2::Freenect2> getFreenect(){
+        static std::shared_ptr<libfreenect2::Freenect2> freenect;
+        if(!freenect) freenect = std::shared_ptr<libfreenect2::Freenect2>(new libfreenect2::Freenect2());
+        return freenect;
+    }
+    
+    
+    void joinThread();
+    void startThread(const std::string serial);
+    void runDevice(const std::string serial);
+    
+    void handleRGBFrame(libfreenect2::Frame *frame);
+    void handleIRFrame(libfreenect2::Frame *frame);
+    void handleDepthFrame(libfreenect2::Frame *frame);
+    
+    bool _opened, _opening, _closing;
+    
+    bool _newRGBFrame, _newIRFrame, _newDepthFrame;
     ci::Surface8uRef _surfaceRGB;
     ci::Channel32fRef _channelIR;
     ci::Channel32fRef _channelDepth;
     
     std::shared_ptr<std::thread> _thread;
-    bool _threadRunning;
-    std::recursive_mutex _lock;
-    
-    bool bNewRGBFrame, bNewIRFrame, bNewDepthFrame;
-    bool bOpened;
-    
-    Options _opts;
-    
-    Protonect protonect;
-    
-    ci::Timer timeout;
+    std::recursive_mutex _recursive_mutex;
 };

@@ -20,8 +20,6 @@
 		7F8023A7A9AE4B609110F07D /* BasicExampleApp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FA072723C0594CFB8E142895 /* BasicExampleApp.cpp */; };
 		8D11072F0486CEB800E47090 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1058C7A1FEA54F0111CA2CBB /* Cocoa.framework */; };
 		B92262DD27294EF79BAAC2AC /* CinderApp.icns in Resources */ = {isa = PBXBuildFile; fileRef = A2D5DF81CFF4408E80543462 /* CinderApp.icns */; };
-		E43F7C4C1CE77383007D3538 /* usb-1.0.0-latest-superspeed.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E43F7BED1CE77383007D3538 /* usb-1.0.0-latest-superspeed.a */; };
-		E43F7C5D1CE77383007D3538 /* Protonect.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E43F7C0A1CE77383007D3538 /* Protonect.cpp */; };
 		E43F7C601CE77383007D3538 /* KinectV2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E43F7C101CE77383007D3538 /* KinectV2.cpp */; };
 		E45F45A31CEB3FE600CEA213 /* usb-1.0.0-latest-superspeed.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E45F45A21CEB3FE600CEA213 /* usb-1.0.0-latest-superspeed.a */; };
 		E4A7411F1CEB4AA1000E52FC /* OpenCL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E4A7411E1CEB4AA1000E52FC /* OpenCL.framework */; };
@@ -47,23 +45,6 @@
 		A2D5DF81CFF4408E80543462 /* CinderApp.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; name = CinderApp.icns; path = ../resources/CinderApp.icns; sourceTree = "<group>"; };
 		A5A312FFD3024CA2A812C151 /* Resources.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = Resources.h; path = ../include/Resources.h; sourceTree = "<group>"; };
 		CBAE56A60B814CF59F2EBFCB /* BasicExample_Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = "\"\""; path = BasicExample_Prefix.pch; sourceTree = "<group>"; };
-		E43F7BDC1CE77383007D3538 /* hotplug.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = hotplug.h; sourceTree = "<group>"; };
-		E43F7BDD1CE77383007D3538 /* libusb.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = libusb.h; sourceTree = "<group>"; };
-		E43F7BDE1CE77383007D3538 /* libusbi.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = libusbi.h; sourceTree = "<group>"; };
-		E43F7BE01CE77383007D3538 /* darwin_usb.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = darwin_usb.h; sourceTree = "<group>"; };
-		E43F7BE11CE77383007D3538 /* linux_usbfs.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = linux_usbfs.h; sourceTree = "<group>"; };
-		E43F7BE21CE77383007D3538 /* poll_posix.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = poll_posix.h; sourceTree = "<group>"; };
-		E43F7BE31CE77383007D3538 /* poll_windows.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = poll_windows.h; sourceTree = "<group>"; };
-		E43F7BE41CE77383007D3538 /* threads_posix.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = threads_posix.h; sourceTree = "<group>"; };
-		E43F7BE51CE77383007D3538 /* threads_windows.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = threads_windows.h; sourceTree = "<group>"; };
-		E43F7BE61CE77383007D3538 /* wince_usb.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = wince_usb.h; sourceTree = "<group>"; };
-		E43F7BE71CE77383007D3538 /* windows_common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = windows_common.h; sourceTree = "<group>"; };
-		E43F7BE81CE77383007D3538 /* windows_usb.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = windows_usb.h; sourceTree = "<group>"; };
-		E43F7BE91CE77383007D3538 /* version.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = version.h; sourceTree = "<group>"; };
-		E43F7BEA1CE77383007D3538 /* version_nano.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = version_nano.h; sourceTree = "<group>"; };
-		E43F7BED1CE77383007D3538 /* usb-1.0.0-latest-superspeed.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = "usb-1.0.0-latest-superspeed.a"; sourceTree = "<group>"; };
-		E43F7C0A1CE77383007D3538 /* Protonect.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Protonect.cpp; sourceTree = "<group>"; };
-		E43F7C0B1CE77383007D3538 /* Protonect.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Protonect.h; sourceTree = "<group>"; };
 		E43F7C101CE77383007D3538 /* KinectV2.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = KinectV2.cpp; sourceTree = "<group>"; };
 		E43F7C111CE77383007D3538 /* KinectV2.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = KinectV2.h; sourceTree = "<group>"; };
 		E45F45A21CEB3FE600CEA213 /* usb-1.0.0-latest-superspeed.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "usb-1.0.0-latest-superspeed.a"; path = "../../../libs/libusb/lib/osx/usb-1.0.0-latest-superspeed.a"; sourceTree = "<group>"; };
@@ -83,7 +64,6 @@
 				006D720419952D00008149E2 /* AVFoundation.framework in Frameworks */,
 				006D720519952D00008149E2 /* CoreMedia.framework in Frameworks */,
 				8D11072F0486CEB800E47090 /* Cocoa.framework in Frameworks */,
-				E43F7C4C1CE77383007D3538 /* usb-1.0.0-latest-superspeed.a in Frameworks */,
 				0091D8F90E81B9330029341E /* OpenGL.framework in Frameworks */,
 				E4A741251CEB4F1D000E52FC /* CoreFoundation.framework in Frameworks */,
 				E45F45A31CEB3FE600CEA213 /* usb-1.0.0-latest-superspeed.a in Frameworks */,
@@ -199,91 +179,10 @@
 		E43F7B5A1CE77383007D3538 /* CinderKinectV2 */ = {
 			isa = PBXGroup;
 			children = (
-				E43F7B961CE77383007D3538 /* libs */,
 				E43F7C0F1CE77383007D3538 /* src */,
 			);
 			name = CinderKinectV2;
 			path = ../../..;
-			sourceTree = "<group>";
-		};
-		E43F7B961CE77383007D3538 /* libs */ = {
-			isa = PBXGroup;
-			children = (
-				E43F7BD91CE77383007D3538 /* libusb */,
-				E43F7C091CE77383007D3538 /* protonect */,
-			);
-			path = libs;
-			sourceTree = "<group>";
-		};
-		E43F7BD91CE77383007D3538 /* libusb */ = {
-			isa = PBXGroup;
-			children = (
-				E43F7BDA1CE77383007D3538 /* include */,
-				E43F7BEB1CE77383007D3538 /* lib */,
-			);
-			path = libusb;
-			sourceTree = "<group>";
-		};
-		E43F7BDA1CE77383007D3538 /* include */ = {
-			isa = PBXGroup;
-			children = (
-				E43F7BDB1CE77383007D3538 /* libusb */,
-			);
-			path = include;
-			sourceTree = "<group>";
-		};
-		E43F7BDB1CE77383007D3538 /* libusb */ = {
-			isa = PBXGroup;
-			children = (
-				E43F7BDC1CE77383007D3538 /* hotplug.h */,
-				E43F7BDD1CE77383007D3538 /* libusb.h */,
-				E43F7BDE1CE77383007D3538 /* libusbi.h */,
-				E43F7BDF1CE77383007D3538 /* os */,
-				E43F7BE91CE77383007D3538 /* version.h */,
-				E43F7BEA1CE77383007D3538 /* version_nano.h */,
-			);
-			path = libusb;
-			sourceTree = "<group>";
-		};
-		E43F7BDF1CE77383007D3538 /* os */ = {
-			isa = PBXGroup;
-			children = (
-				E43F7BE01CE77383007D3538 /* darwin_usb.h */,
-				E43F7BE11CE77383007D3538 /* linux_usbfs.h */,
-				E43F7BE21CE77383007D3538 /* poll_posix.h */,
-				E43F7BE31CE77383007D3538 /* poll_windows.h */,
-				E43F7BE41CE77383007D3538 /* threads_posix.h */,
-				E43F7BE51CE77383007D3538 /* threads_windows.h */,
-				E43F7BE61CE77383007D3538 /* wince_usb.h */,
-				E43F7BE71CE77383007D3538 /* windows_common.h */,
-				E43F7BE81CE77383007D3538 /* windows_usb.h */,
-			);
-			path = os;
-			sourceTree = "<group>";
-		};
-		E43F7BEB1CE77383007D3538 /* lib */ = {
-			isa = PBXGroup;
-			children = (
-				E43F7BEC1CE77383007D3538 /* osx */,
-			);
-			path = lib;
-			sourceTree = "<group>";
-		};
-		E43F7BEC1CE77383007D3538 /* osx */ = {
-			isa = PBXGroup;
-			children = (
-				E43F7BED1CE77383007D3538 /* usb-1.0.0-latest-superspeed.a */,
-			);
-			path = osx;
-			sourceTree = "<group>";
-		};
-		E43F7C091CE77383007D3538 /* protonect */ = {
-			isa = PBXGroup;
-			children = (
-				E43F7C0A1CE77383007D3538 /* Protonect.cpp */,
-				E43F7C0B1CE77383007D3538 /* Protonect.h */,
-			);
-			path = protonect;
 			sourceTree = "<group>";
 		};
 		E43F7C0F1CE77383007D3538 /* src */ = {
@@ -359,7 +258,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				E43F7C601CE77383007D3538 /* KinectV2.cpp in Sources */,
-				E43F7C5D1CE77383007D3538 /* Protonect.cpp in Sources */,
 				7F8023A7A9AE4B609110F07D /* BasicExampleApp.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -431,7 +329,11 @@
 				);
 				INFOPLIST_FILE = Info.plist;
 				INSTALL_PATH = "$(HOME)/Applications";
-				OTHER_LDFLAGS = "\"$(CINDER_PATH)/lib/libcinder.a\"";
+				OTHER_LDFLAGS = (
+					"\"$(CINDER_PATH)/lib/libcinder.a\"",
+					"../../../libs/libusb/lib/osx/usb-1.0.0-latest-superspeed.a",
+					../../../libs/libfreenect2/lib/osx/libfreenect2.a,
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = "org.libcinder.${PRODUCT_NAME:rfc1034identifier}";
 				PRODUCT_NAME = BasicExample;
 				STRIP_INSTALLED_PRODUCT = YES;

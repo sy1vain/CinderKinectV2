@@ -7,256 +7,274 @@
 //
 
 #include "KinectV2.h"
+
 #include "cinder/Log.h"
 #include "cinder/Utilities.h"
 
-KinectV2Ref KinectV2::create(Options opts){
-    return KinectV2Ref(new KinectV2(opts));
+KinectV2Ref KinectV2::create(){
+    return KinectV2Ref(new KinectV2());
 }
 
-KinectV2Ref KinectV2::create(std::string serial, Options opts){
-    KinectV2Ref kinect = KinectV2::create(opts);
-    kinect->open(serial);
-    return kinect;
+KinectV2::KinectV2::KinectV2() : _opened(false), _opening(false), _closing(false){
+    CI_LOG_I("Creating KinectV2");
 }
 
-KinectV2Ref KinectV2::create(unsigned int deviceId, Options opts){
-    KinectV2Ref kinect = KinectV2::create(opts);
-    kinect->open(deviceId);
-    return kinect;
-}
-
-//--------------------------------------------------------------------------------
-KinectV2::KinectV2(Options opts){
-    bNewRGBFrame = bNewIRFrame = bNewDepthFrame  = false;
-    bOpened    = false;
-    
-    _opts = opts;
-}
-
-//--------------------------------------------------------------------------------
 KinectV2::~KinectV2(){
     close();
+    joinThread();
+    CI_LOG_I("Destroyed KinectV2");
 }
 
-//--------------------------------------------------------------------------------
-static bool sortBySerialName( const KinectV2::KinectDeviceInfo & A, const KinectV2::KinectDeviceInfo & B ){
-    return A.serial < B.serial;
-}
-
-//--------------------------------------------------------------------------------
-std::vector <KinectV2::KinectDeviceInfo> KinectV2::getDeviceList(){
+std::vector<KinectV2::KinectDeviceInfo> KinectV2::getDeviceList(){
     std::vector <KinectDeviceInfo> devices;
     
-    int num = protonect.getFreenect2Instance().enumerateDevices();
-    for (int i = 0; i < num; i++){
+    int num = getFreenect()->enumerateDevices();
+    
+    for (int i=0; i<num; i++){
         KinectDeviceInfo kdi;
-        kdi.serial = protonect.getFreenect2Instance().getDeviceSerialNumber(i);
-        kdi.freenectId = i; 
+        kdi.serial = getFreenect()->getDeviceSerialNumber(i);
+        kdi.freenectId = i;
         devices.push_back(kdi);
     }
     
-    for (int i = 0; i < num; i++){
+    std::sort(devices.begin(), devices.end(), [](const KinectDeviceInfo& A, const KinectDeviceInfo& B) -> bool {
+        return A.serial < B.serial;
+    });
+    
+    for(int i=0; i<num; i++){
         devices[i].deviceId = i;
     }
     
     return devices;
 }
 
-//--------------------------------------------------------------------------------
-unsigned int KinectV2::getNumDevices(){
-   return getDeviceList().size(); 
+void KinectV2::open(KinectV2::KinectDeviceInfo kinect){
+    open(kinect.serial);
 }
 
-//--------------------------------------------------------------------------------
-bool KinectV2::open(unsigned int deviceId){
-    
+void KinectV2::open(unsigned int deviceId){
     std::vector <KinectDeviceInfo> devices = getDeviceList();
     
-    if( devices.size() == 0 ){
+    if(devices.empty()){
         CI_LOG_E("no devices connected");
-        return false;
+        return;
     }
     
-    if( deviceId >= devices.size() ){
+    if(deviceId >= devices.size()){
         CI_LOG_E(" deviceId " << deviceId << " is bigger or equal to the number of connected devices " << devices.size());
-        return false;
+        return;
     }
-
+    
     std::string serial = devices[deviceId].serial;
-    return open(serial);
+    open(serial);
 }
 
-//--------------------------------------------------------------------------------
-bool KinectV2::open(std::string serial){
-    close(); 
+void KinectV2::open(const std::string& serial){
+    CI_LOG_I("Open device " << serial);
     
-    bNewRGBFrame = bNewIRFrame = bNewDepthFrame  = false;
-    bOpened    = false;
+    close(); //close if needed
     
-    unsigned int frames = 0;
-    if(_opts.color()) frames |= libfreenect2::Frame::Color;
-    if(_opts.ir()) frames |= libfreenect2::Frame::Ir;
-    if(_opts.depth()) frames |= libfreenect2::Frame::Depth;
-    
-    int retVal = protonect.openKinect(serial, frames);
-    
-    if(retVal!=0){
-        return false;
-    }
-    
-    startThread();
-    
-    bOpened = true;
-    return true;
-}
+    joinThread(); //make sure the current thread is not running any more
 
-//--------------------------------------------------------------------------------
-bool KinectV2::isThreadRunning(){
-    std::lock_guard<std::recursive_mutex> locked(_lock);
-    return _threadRunning && protonect.isOpened();
-}
-
-void KinectV2::startThread(){
-    if(isThreadRunning()) stopThread();
-    
-    std::lock_guard<std::recursive_mutex> locked(_lock);
-    _threadRunning = true;
-    
-    _thread = std::shared_ptr<std::thread>(new std::thread(std::bind(&KinectV2::threadedFunction, this)));
-}
-
-void KinectV2::stopThread(){
     {
-        std::lock_guard<std::recursive_mutex> locked(_lock);
-        _threadRunning = false;
+        std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
+        _opening = true;
     }
+    
+    startThread(serial);
+}
+
+void KinectV2::close(){
+    if(isClosing()) return;
+    if(!isOpen() && !isOpening()) return;
+    
+    {
+        std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
+        _closing = true;
+    }
+}
+
+bool KinectV2::isBusy(){
+    return isOpen() || isOpening() || isClosing();
+}
+
+bool KinectV2::isOpen(){
+    std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
+    return _opened;
+}
+
+bool KinectV2::isOpening(){
+    std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
+    return _opening;
+}
+
+bool KinectV2::isClosing(){
+    std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
+    return _closing;
+}
+
+bool KinectV2::checkRGBFrameNew(){
+    std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
+    return _newRGBFrame;
+}
+bool KinectV2::checkIRFrameNew(){
+    std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
+    return _newIRFrame;
+}
+bool KinectV2::checkDepthFrameNew(){
+    std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
+    return _newDepthFrame;
+}
+
+ci::Surface8uRef KinectV2::getSurfaceRGB(){
+    std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
+    _newRGBFrame = false;
+    return _surfaceRGB;
+}
+
+ci::Channel32fRef KinectV2::getChannelIR(){
+    std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
+    _newIRFrame = false;
+    return _channelIR;
+}
+
+ci::Channel32fRef KinectV2::getChannelDepth(){
+    std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
+    _newDepthFrame = false;
+    return _channelDepth;
+}
+
+void KinectV2::joinThread(){
     if(_thread && _thread->joinable()){
         _thread->join();
     }
     _thread.reset();
 }
 
+void KinectV2::startThread(const std::string serial){
+    joinThread();
+    
+    std::lock_guard<std::recursive_mutex> locked(_recursive_mutex);
+    _thread = std::shared_ptr<std::thread>(new std::thread(std::bind(&KinectV2::runDevice, this, serial)));
+}
 
-
-
-//--------------------------------------------------------------------------------
-void KinectV2::threadedFunction(){
-    timeout.start();
-    while(isThreadRunning()){
-        Protonect::Frame frame = protonect.updateKinect(getMinDist(), getMaxDist());
+void KinectV2::runDevice(const std::string serial){
+    while(isOpening()){
+        
+        libfreenect2::PacketPipeline *pipeline = new libfreenect2::OpenCLPacketPipeline();
+        libfreenect2::Freenect2Device *dev = getFreenect()->openDevice(serial, pipeline);
+        
+        if(dev==0){
+            std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
+            _opening = false;
+            _opened = false;
+            _closing = false;
+            return;
+        }
+        
+        
+        unsigned int frame_types = 0;
+        frame_types |= libfreenect2::Frame::Color;
+        frame_types |= libfreenect2::Frame::Depth;
+        frame_types |= libfreenect2::Frame::Ir;
+        
+        libfreenect2::SyncMultiFrameListener* listener = new libfreenect2::SyncMultiFrameListener(frame_types);
+        libfreenect2::FrameMap frames;
+        
+        bool enable_rgb = true;
+        bool enable_depth = true;
+        
+        if(enable_rgb) dev->setColorFrameListener(listener);
+        if(enable_depth) dev->setIrAndDepthFrameListener(listener);
+        
+        dev->startStreams(enable_rgb, enable_depth);
         {
-            std::lock_guard<std::recursive_mutex> locked(_lock);
-            if(frame.rgb){
-                _surfaceRGB = frame.rgb;
-                bNewRGBFrame = true;
-                timeout.start();
-            }
-            if(frame.ir){
-                _channelIR = frame.ir;
-                bNewIRFrame = true;
-                timeout.start();
-            }
-            if(frame.depth){
-                _channelDepth = frame.depth;
-                bNewDepthFrame = true;
-                timeout.start();
+            std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
+            _opening = false;
+            _opened = true;
+        }
+    
+        
+        while(!isClosing()){
+            if(listener->hasNewFrame()){
+                listener->waitForNewFrame(frames);
+                
+                handleRGBFrame(frames[libfreenect2::Frame::Color]);
+                handleIRFrame(frames[libfreenect2::Frame::Ir]);
+                handleDepthFrame(frames[libfreenect2::Frame::Depth]);
+                
+                listener->release(frames);
+            }else{
+                ci::sleep(10);
             }
         }
         
-        ci::sleep(15);
+        {
+            std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
+            _opened = false;
+        }
+        
+        //cleanup
+        listener->release(frames);
+        
+        dev->stop();
+        dev->close();
+        delete listener;
+        delete dev;
+        dev = 0;
+        
+        {
+            std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
+            _closing = false;
+        }
+    }
+}
+
+void KinectV2::handleRGBFrame(libfreenect2::Frame *frame){
+    if(!frame) return;
+    ci::SurfaceChannelOrder channelOrder = (frame->format==libfreenect2::Frame::Format::RGBX)?ci::SurfaceChannelOrder::RGBX:ci::SurfaceChannelOrder::BGRX;
+    ci::Surface8uRef colorSurface = ci::Surface8u::create(frame->width, frame->height, true);
+    colorSurface->setChannelOrder(channelOrder);
+    memcpy(colorSurface->getData(), frame->data, frame->width*frame->height*4 );
+    {
+        std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
+        _surfaceRGB = colorSurface;
+        _newRGBFrame = true;
+    }
+}
+
+void KinectV2::handleIRFrame(libfreenect2::Frame *frame){
+    if(!frame) return;
+    ci::Channel32fRef irChannel = ci::Channel32f::create(frame->width, frame->height);
+    memcpy(irChannel->getData(), reinterpret_cast<float*>(frame->data), frame->width*frame->height*4);
+    
+    float* data = irChannel->getData();
+    for(int i=0; i<irChannel->getWidth() * irChannel->getHeight(); i++){
+        data[i] /= 65535;
     }
     
-    CI_LOG_D("Thread stopped!");
-}
-
-//--------------------------------------------------------------------------------
-void KinectV2::update(){
-}
-
-//--------------------------------------------------------------------------------
-bool KinectV2::isOpen(){
-    return protonect.isOpened();
-}
-
-//--------------------------------------------------------------------------------
-bool KinectV2::checkRGBFrameNew(){
-    if(timeout.getSeconds()>getTimeout()) close();
-    return bNewRGBFrame;
-}
-bool KinectV2::checkIRFrameNew(){
-    if(timeout.getSeconds()>getTimeout()) close();
-    return bNewIRFrame;
-}
-bool KinectV2::checkDepthFrameNew(){
-    if(timeout.getSeconds()>getTimeout()) close();
-    return bNewDepthFrame;
-}
-
-//--------------------------------------------------------------------------------
-ci::Surface8uRef KinectV2::getSurfaceRGB(){
-    std::lock_guard<std::recursive_mutex> locked(_lock);
-    bNewRGBFrame = false;
-    return _surfaceRGB;
-}
-
-//--------------------------------------------------------------------------------
-ci::Channel32fRef KinectV2::getChannelIR(){
-    std::lock_guard<std::recursive_mutex> locked(_lock);
-    bNewIRFrame = false;
-    return _channelIR;
-}
-
-//--------------------------------------------------------------------------------
-ci::Channel32fRef KinectV2::getChannelDepth(){
-    std::lock_guard<std::recursive_mutex> locked(_lock);
-    bNewDepthFrame = false;
-    return _channelDepth;
-}
-
-//--------------------------------------------------------------------------------
-int KinectV2::getMinDist(){
-    std::lock_guard<std::recursive_mutex> locked(_lock);
-    return _opts.minDistance();
-}
-
-//--------------------------------------------------------------------------------
-void KinectV2::setMinDist(int dist){
-    std::lock_guard<std::recursive_mutex> locked(_lock);
-    _opts.minDistance(dist);
-}
-
-//--------------------------------------------------------------------------------
-int KinectV2::getMaxDist(){
-    std::lock_guard<std::recursive_mutex> locked(_lock);
-    return _opts.maxDistance();
-}
-
-//--------------------------------------------------------------------------------
-void KinectV2::setMaxDist(int dist){
-    std::lock_guard<std::recursive_mutex> locked(_lock);
-    _opts.maxDistance(dist);
-}
-
-//--------------------------------------------------------------------------------
-float KinectV2::getTimeout(){
-    std::lock_guard<std::recursive_mutex> locked(_lock);
-    return _opts.timeout();
-}
-
-//--------------------------------------------------------------------------------
-void KinectV2::setTimeout(float timeout){
-    std::lock_guard<std::recursive_mutex> locked(_lock);
-    _opts.timeout(timeout);
-}
-
-//--------------------------------------------------------------------------------
-void KinectV2::close(){
-    if( bOpened ){
-        stopThread();
-        protonect.closeKinect();
-        bOpened = false;
+    {
+        std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
+        _channelIR = irChannel;
+        _newIRFrame = true;
     }
 }
 
-
+void KinectV2::handleDepthFrame(libfreenect2::Frame *frame){
+    if(!frame) return;
+    int minDist = 500;
+    int maxDist = 6000;
+    ci::Channel32fRef depthChannel = ci::Channel32f::create(frame->width, frame->height);
+    memcpy(depthChannel->getData(), reinterpret_cast<float*>(frame->data), frame->width*frame->height*4);
+    
+    float* data = depthChannel->getData();
+    for(int i=0; i<depthChannel->getWidth() * depthChannel->getHeight(); i++){
+        data[i] = glm::clamp(ci::lmap<float>(data[i], minDist, maxDist, 0.f, 1.f), 0.f, 1.f);
+    }
+    
+    {
+        std::lock_guard<std::recursive_mutex> locked(_recursive_mutex);
+        _channelDepth = depthChannel;
+        _newDepthFrame = true;
+    }
+}
