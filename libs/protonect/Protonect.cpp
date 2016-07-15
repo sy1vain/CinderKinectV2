@@ -53,36 +53,38 @@ Protonect::Protonect(){
 //    }
 }
 
-int Protonect::openKinect(std::string serial){
+int Protonect::openKinect(std::string serial, unsigned int frames){
           
 //      pipeline = new libfreenect2::CpuPacketPipeline();
 //        pipeline = new libfreenect2::OpenGLPacketPipeline();
         pipeline = new libfreenect2::OpenCLPacketPipeline();
 
-      if(pipeline)
-      {
+    if(pipeline)
+    {
         dev = freenect2.openDevice(serial, pipeline);
-      }
+    }
 
-      if(dev == 0)
-      {
-          CI_LOG_E("failure opening device with serial " << serial);
-          return -1;
-      }
-
+    if(dev == 0)
+    {
+        CI_LOG_E("failure opening device with serial " << serial);
+        return -1;
+    }
     
-      listener = new libfreenect2::SyncMultiFrameListener(libfreenect2::Frame::Color | libfreenect2::Frame::Ir | libfreenect2::Frame::Depth);
-      undistorted = new libfreenect2::Frame(512, 424, 4);
-      registered  = new libfreenect2::Frame(512, 424, 4);
+    bool enable_rgb = (frames & libfreenect2::Frame::Color)!=0;
+    bool enable_depth = (frames & (libfreenect2::Frame::Ir | libfreenect2::Frame::Depth))!=0;
+    
+    listener = new libfreenect2::SyncMultiFrameListener(frames);
+    undistorted = new libfreenect2::Frame(512, 424, 4);
+    registered  = new libfreenect2::Frame(512, 424, 4);
 
-      dev->setColorFrameListener(listener);
-      dev->setIrAndDepthFrameListener(listener);
-      dev->start();
+    if(enable_rgb) dev->setColorFrameListener(listener);
+    if(enable_depth) dev->setIrAndDepthFrameListener(listener);
+    dev->startStreams(enable_rgb, enable_depth);
 
     CI_LOG_V("device serial: " << dev->getSerialNumber());
     CI_LOG_V("device firmware: " << dev->getFirmwareVersion());
 
-      registration = new libfreenect2::Registration(dev->getIrCameraParams(), dev->getColorCameraParams());
+    if(enable_rgb && enable_depth) registration = new libfreenect2::Registration(dev->getIrCameraParams(), dev->getColorCameraParams());
 
     bOpened = true;
     
@@ -95,46 +97,49 @@ Protonect::Frame Protonect::updateKinect(int minDist, int maxDist){
     
     if(bOpened){
         //collect frames
-        bool success = listener->waitForNewFrame(frames, 1000);
-        if(!success){
-            closeKinect();
-            return frame;
-        }
-        
+        if(!listener->hasNewFrame()) return frame;
+        listener->waitForNewFrame(frames);
+
         libfreenect2::Frame *rgb = frames[libfreenect2::Frame::Color];
         libfreenect2::Frame *ir = frames[libfreenect2::Frame::Ir];
         libfreenect2::Frame *depth = frames[libfreenect2::Frame::Depth];
-        
+
         //get RGB
-        ci::SurfaceChannelOrder channelOrder = (rgb->format==libfreenect2::Frame::Format::RGBX)?ci::SurfaceChannelOrder::RGBX:ci::SurfaceChannelOrder::BGRX;
-        ci::Surface8uRef colorSurface = ci::Surface8u::create(rgb->width, rgb->height, true);
-        colorSurface->setChannelOrder(channelOrder);
-        memcpy(colorSurface->getData(), rgb->data, rgb->width*rgb->height*4 );
-        frame.rgb = colorSurface;
-        
-        //get IR
-        ci::Channel32fRef irChannel = ci::Channel32f::create(ir->width, ir->height);
-        memcpy(irChannel->getData(), reinterpret_cast<float*>(ir->data), ir->width*ir->height*4);
-        
-        float* data = irChannel->getData();
-        for(int i=0; i<irChannel->getWidth() * irChannel->getHeight(); i++){
-            data[i] /= 65535;
+        if(rgb){
+            ci::SurfaceChannelOrder channelOrder = (rgb->format==libfreenect2::Frame::Format::RGBX)?ci::SurfaceChannelOrder::RGBX:ci::SurfaceChannelOrder::BGRX;
+            ci::Surface8uRef colorSurface = ci::Surface8u::create(rgb->width, rgb->height, true);
+            colorSurface->setChannelOrder(channelOrder);
+            memcpy(colorSurface->getData(), rgb->data, rgb->width*rgb->height*4 );
+            frame.rgb = colorSurface;
         }
         
-        frame.ir = irChannel;
+        //get IR
+        if(ir){
+            ci::Channel32fRef irChannel = ci::Channel32f::create(ir->width, ir->height);
+            memcpy(irChannel->getData(), reinterpret_cast<float*>(ir->data), ir->width*ir->height*4);
+        
+            float* data = irChannel->getData();
+            for(int i=0; i<irChannel->getWidth() * irChannel->getHeight(); i++){
+                data[i] /= 65535;
+            }
+        
+            frame.ir = irChannel;
+        }
         
         
         //get DEPTH
-        ci::Channel32fRef depthChannel = ci::Channel32f::create(depth->width, depth->height);
-        memcpy(depthChannel->getData(), reinterpret_cast<float*>(depth->data), depth->width*depth->height*4);
+        if(depth){
+            ci::Channel32fRef depthChannel = ci::Channel32f::create(depth->width, depth->height);
+            memcpy(depthChannel->getData(), reinterpret_cast<float*>(depth->data), depth->width*depth->height*4);
         
-        data = depthChannel->getData();
-        for(int i=0; i<depthChannel->getWidth() * depthChannel->getHeight(); i++){
-            data[i] = glm::clamp(ci::lmap<float>(data[i], minDist, maxDist, 0.f, 1.f), 0.f, 1.f);
+            float* data = depthChannel->getData();
+            for(int i=0; i<depthChannel->getWidth() * depthChannel->getHeight(); i++){
+                data[i] = glm::clamp(ci::lmap<float>(data[i], minDist, maxDist, 0.f, 1.f), 0.f, 1.f);
+            }
+        
+            frame.depth = depthChannel;
         }
         
-        frame.depth = depthChannel;
-                
     
         listener->release(frames);
     }
@@ -162,6 +167,14 @@ int Protonect::closeKinect(){
       registered = NULL;
       
       delete registration;
+      registration = NULL;
+      
+//      delete pipeline;
+//      pipeline = NULL;
+      
+      delete dev;
+      dev = 0;
+      
       bOpened = false; 
   }
 

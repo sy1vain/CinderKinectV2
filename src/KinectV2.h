@@ -24,13 +24,23 @@ public:
     
     class Options {
     public:
-        Options(): _distMin(500), _distMax(6000){}
+        Options(): _distMin(500), _distMax(6000), _color(true), _ir(true), _depth(true), _timeout(5){}
         int minDistance(){ return _distMin; }
         Options& minDistance(int dist){ _distMin = dist; return *this; }
         int maxDistance(){ return _distMax; }
         Options& maxDistance(int dist){ _distMax = dist; return *this; }
+        bool color(){ return _color; }
+        Options& color(bool color){ _color = color; return *this; }
+        bool ir(){ return _ir; }
+        Options& ir(bool ir){ _ir = ir; return *this; }
+        bool depth(){ return _depth; }
+        Options& depth(bool depth){ _depth = depth; return *this; }
+        float timeout(){ return _timeout; }
+        Options& timeout(float timeout){ _timeout = timeout; return *this; }
     protected:
         int _distMin, _distMax;
+        bool _color, _ir, _depth;
+        float _timeout;
     };
     
     static KinectV2Ref create(Options opts=Options());
@@ -63,6 +73,8 @@ public:
     void setMinDist(int dist);
     int getMaxDist();
     void setMaxDist(int dist);
+    float getTimeout();
+    void setTimeout(float timeout);
     
 protected:
     KinectV2(Options opt);
@@ -85,4 +97,6 @@ protected:
     Options _opts;
     
     Protonect protonect;
+    
+    ci::Timer timeout;
 };

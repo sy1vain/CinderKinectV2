@@ -25,7 +25,7 @@ class Protonect{
     
         Protonect();
     
-        int openKinect(std::string serialNo);
+        int openKinect(std::string serialNo, unsigned int frames = libfreenect2::Frame::Color|libfreenect2::Frame::Ir|libfreenect2::Frame::Depth);
         Frame updateKinect(int minDist=50, int maxDist=8000);
         int closeKinect();
         bool isOpened();

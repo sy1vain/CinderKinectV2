@@ -8,6 +8,7 @@
 
 #include "KinectV2.h"
 #include "cinder/Log.h"
+#include "cinder/Utilities.h"
 
 KinectV2Ref KinectV2::create(Options opts){
     return KinectV2Ref(new KinectV2(opts));
@@ -93,7 +94,12 @@ bool KinectV2::open(std::string serial){
     bNewRGBFrame = bNewIRFrame = bNewDepthFrame  = false;
     bOpened    = false;
     
-    int retVal = protonect.openKinect(serial);
+    unsigned int frames = 0;
+    if(_opts.color()) frames |= libfreenect2::Frame::Color;
+    if(_opts.ir()) frames |= libfreenect2::Frame::Ir;
+    if(_opts.depth()) frames |= libfreenect2::Frame::Depth;
+    
+    int retVal = protonect.openKinect(serial, frames);
     
     if(retVal!=0){
         return false;
@@ -136,26 +142,32 @@ void KinectV2::stopThread(){
 
 //--------------------------------------------------------------------------------
 void KinectV2::threadedFunction(){
-
+    timeout.start();
     while(isThreadRunning()){
         Protonect::Frame frame = protonect.updateKinect(getMinDist(), getMaxDist());
-        
         {
             std::lock_guard<std::recursive_mutex> locked(_lock);
             if(frame.rgb){
                 _surfaceRGB = frame.rgb;
                 bNewRGBFrame = true;
+                timeout.start();
             }
             if(frame.ir){
                 _channelIR = frame.ir;
                 bNewIRFrame = true;
+                timeout.start();
             }
             if(frame.depth){
                 _channelDepth = frame.depth;
                 bNewDepthFrame = true;
+                timeout.start();
             }
         }
+        
+        ci::sleep(15);
     }
+    
+    CI_LOG_D("Thread stopped!");
 }
 
 //--------------------------------------------------------------------------------
@@ -169,12 +181,15 @@ bool KinectV2::isOpen(){
 
 //--------------------------------------------------------------------------------
 bool KinectV2::checkRGBFrameNew(){
+    if(timeout.getSeconds()>getTimeout()) close();
     return bNewRGBFrame;
 }
 bool KinectV2::checkIRFrameNew(){
+    if(timeout.getSeconds()>getTimeout()) close();
     return bNewIRFrame;
 }
 bool KinectV2::checkDepthFrameNew(){
+    if(timeout.getSeconds()>getTimeout()) close();
     return bNewDepthFrame;
 }
 
@@ -221,6 +236,18 @@ int KinectV2::getMaxDist(){
 void KinectV2::setMaxDist(int dist){
     std::lock_guard<std::recursive_mutex> locked(_lock);
     _opts.maxDistance(dist);
+}
+
+//--------------------------------------------------------------------------------
+float KinectV2::getTimeout(){
+    std::lock_guard<std::recursive_mutex> locked(_lock);
+    return _opts.timeout();
+}
+
+//--------------------------------------------------------------------------------
+void KinectV2::setTimeout(float timeout){
+    std::lock_guard<std::recursive_mutex> locked(_lock);
+    _opts.timeout(timeout);
 }
 
 //--------------------------------------------------------------------------------
