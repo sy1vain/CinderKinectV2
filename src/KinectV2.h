@@ -106,4 +106,6 @@ protected:
     int _distMin, _distMax;
     bool _color, _ir, _depth;
     float _timeout;
+    
+    ci::Timer _timeoutTimer;
 };

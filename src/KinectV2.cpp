@@ -15,7 +15,7 @@ KinectV2Ref KinectV2::create(){
     return KinectV2Ref(new KinectV2());
 }
 
-KinectV2::KinectV2::KinectV2() : _opened(false), _opening(false), _closing(false), _distMin(500), _distMax(6000), _color(true), _ir(true), _depth(true) {
+KinectV2::KinectV2::KinectV2() : _opened(false), _opening(false), _closing(false), _distMin(500), _distMax(6000), _color(true), _ir(true), _depth(true), _timeout(3) {
     CI_LOG_I("Creating KinectV2");
 }
 
@@ -262,10 +262,12 @@ void KinectV2::runDevice(const std::string serial){
             std::lock_guard<std::recursive_mutex> lock(_recursive_mutex);
             _opening = false;
         }
-    
         
+        _timeoutTimer.start();
+    
         while(!isClosing()){
             if(listener->hasNewFrame()){
+                _timeoutTimer.start();
                 listener->waitForNewFrame(frames);
                 
                 handleRGBFrame(frames[libfreenect2::Frame::Color]);
@@ -274,6 +276,8 @@ void KinectV2::runDevice(const std::string serial){
                 
                 listener->release(frames);
             }else{
+                if(_timeoutTimer.getSeconds()>=_timeout) close(false);
+                
                 ci::sleep(10);
             }
         }
