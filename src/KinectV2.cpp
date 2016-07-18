@@ -222,6 +222,8 @@ void KinectV2::startThread(const std::string serial){
 }
 
 void KinectV2::runDevice(const std::string serial){
+    ci::ThreadSetup _threadSetup;
+    
     while(isOpening()){
         
         libfreenect2::PacketPipeline *pipeline = new libfreenect2::OpenCLPacketPipeline();
